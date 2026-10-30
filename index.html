@@ -1,0 +1,379 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>PA Mail Ballot Precinct Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+
+/* Layout: operator's map desk. Navy header band, controls row, map left with
+   a summary rail right; stacks to one column on phones. Partisan red/blue only
+   in the data; ColdSpark navy/gold for chrome. */
+:root{
+  --bg:#f5f7f9; --panel:#ffffff; --ink:#013047; --muted:#557083; --line:#d9e2e8;
+  --band:#013047; --band-ink:#ffffff; --band-muted:#8FCAE5; --gold:#FDB614;
+  --map-bg:#e9eef2; --nodata:#cfd8de; --stroke:rgba(255,255,255,.55); --county:#013047;
+  --mid:#eceae6;
+  --d4:#173f78; --d3:#2f64a8; --d2:#6f9bd0; --d1:#b5cde8;
+  --r1:#f0c1b6; --r2:#e08772; --r3:#c44b37; --r4:#8e2416;
+  --v4:#7a4508; --v3:#b97a2a; --v2:#dcbd7a; --v1:#f0e2bf;
+  --u1:#c6e8e2; --u2:#7ec8bc; --u3:#2f958b; --u4:#03625a;
+  --display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --body:'Barlow',Arial,Helvetica,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#06141d; --panel:#0b2130; --ink:#e8f1f6; --muted:#8fa9b8; --line:#1d3a4c;
+  --band:#001e2e; --band-ink:#ffffff; --band-muted:#8FCAE5;
+  --map-bg:#0a1b26; --nodata:#2a3d4a; --stroke:rgba(6,20,29,.6); --county:#cfe6f2; --mid:#3b4650;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#06141d; --panel:#0b2130; --ink:#e8f1f6; --muted:#8fa9b8; --line:#1d3a4c;
+  --band:#001e2e; --band-ink:#ffffff; --band-muted:#8FCAE5;
+  --map-bg:#0a1b26; --nodata:#2a3d4a; --stroke:rgba(6,20,29,.6); --county:#cfe6f2; --mid:#3b4650;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1440px;margin:0 auto}
+header{background:var(--band);color:var(--band-ink)}
+header .wrap{padding-block:16px 14px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between}
+.brand{display:flex;gap:12px;align-items:center;min-width:0}
+.brand svg{width:30px;height:30px;flex:none}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.2vw,30px);letter-spacing:.2px;margin:0;line-height:1.05;text-wrap:balance}
+.sub{color:var(--band-muted);font-size:13px;margin-top:3px}
+.status{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--band-muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex:none}
+.dot.live{background:#6fd3a6}.dot.err{background:#ff7b6b}
+.btn{font:600 13px var(--body);border:1px solid currentColor;background:transparent;color:inherit;border-radius:4px;padding:5px 10px;cursor:pointer}
+.btn:focus-visible,select:focus-visible,.seg button:focus-visible,.mover:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:default}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;padding-block:14px}
+.ctl label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-bottom:4px}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg button{font:600 13px var(--body);border:0;background:transparent;color:var(--ink);padding:7px 12px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+select{font:500 14px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;max-width:100%}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding-bottom:20px}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.mapbox{position:relative;background:var(--map-bg);border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:0}
+#map{display:block;width:100%;height:min(72vh,720px);min-height:380px;touch-action:none}
+.vtd{stroke:var(--stroke);stroke-width:.35;vector-effect:non-scaling-stroke;transition:opacity .2s}
+.dim .vtd.out{opacity:.18}
+.county{fill:none;stroke:var(--county);stroke-opacity:.55;stroke-width:.9;vector-effect:non-scaling-stroke;pointer-events:none}
+.selline{fill:none;stroke:var(--gold);stroke-width:2.2;vector-effect:non-scaling-stroke;pointer-events:none}
+.hov{fill:none;stroke:var(--ink);stroke-width:2;vector-effect:non-scaling-stroke;pointer-events:none}
+.overlay{position:absolute;inset:auto 12px 12px 12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-end;pointer-events:none;flex-wrap:wrap}
+.legend{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;pointer-events:auto;max-width:100%}
+.legend .t{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:5px}
+.swatches{display:flex}
+.swatches div{width:34px;height:10px}
+.ticks{display:flex;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ticks span{width:34px;text-align:center}
+.ticks span:first-child{margin-left:17px}
+.ends{display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-top:2px}
+.nd{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);margin-top:4px}
+.nd i{width:12px;height:10px;background:var(--nodata);display:inline-block}
+.zoom{display:flex;flex-direction:column;gap:4px;pointer-events:auto}
+.zoom button{width:32px;height:32px;font:600 18px var(--body);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.banner{position:absolute;top:12px;left:12px;right:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:6px;padding:10px 12px;font-size:13px}
+.banner b{display:block;margin-bottom:2px}
+.rail{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.card h2{font-family:var(--display);font-size:20px;font-weight:700;margin:0 0 2px;text-wrap:balance}
+.card .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 12px}
+.big .v{font-family:var(--display);font-size:28px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.big .s{font-size:12px;color:var(--muted)}
+.bars{display:grid;grid-template-columns:38px 1fr;gap:6px 8px;align-items:center;font-size:12px;font-variant-numeric:tabular-nums}
+.bar{display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--nodata)}
+.bar span{display:block;height:100%}
+.bar .D{background:var(--d3)}.bar .R{background:var(--r3)}.bar .O{background:var(--muted)}
+.barlab{grid-column:2;display:flex;justify-content:space-between;color:var(--muted);margin-top:-3px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:4px 0;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.movers{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.movers ol{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.mover{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:6px;font-size:12px;width:100%;box-sizing:border-box;padding:3px 0;border-bottom:1px solid var(--line)}
+.mover .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mover .x{font-weight:700;font-variant-numeric:tabular-nums}
+.pos{color:var(--r3)}.neg{color:var(--d3)}
+.hint{color:var(--muted);font-size:13px}
+.notes{color:var(--muted);font-size:12.5px;max-width:80ch;padding-bottom:28px}
+.notes p{margin:0 0 6px}
+.err{color:var(--r3)}
+</style></head><body>
+
+<header><div class="wrap">
+  <div class="brand">
+    <svg viewBox="0 0 300 300" aria-hidden="true"><path fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round" d="M21,227 L13,211 L7,194 L2,177 L0,159 L0,141 L3,123 L7,105 L13,88 L22,72 L32,57 L44,44 L58,32 L73,22 L89,13 L106,7 L123,2 L141,0 L159,0 L177,2 L195,7 L212,13 L228,22 L243,32 L256,44 L268,57 L278,72 L287,88 L293,105 L298,123 L300,141 L300,159 L298,177 L293,194 L287,211 L278,227 L268,242 L256,256 L243,268 L228,278 L212,287 L195,293 L177,297 L159,300 L141,300 L123,298 L106,293 L89,287 L73,279 L78,270 L94,276 L110,281 L126,283 L142,284 L158,282 L174,279 L189,275 L204,269 L218,262 L231,253 L243,242 L253,231 L262,218 L270,204 L275,189 L279,173 L281,158 L281,142 L279,126 L275,111 L269,96 L262,82 L253,69 L243,57 L231,47 L218,38 L204,31 L189,25 L174,21 L158,19 L142,19 L127,21 L111,25 L96,30 L82,38 L69,47 L58,57 L47,69 L38,82 L31,96 L25,111 L21,126 L18,142 L16,158 L17,174 L19,190 L24,206 L30,222Z"/><path fill="#FDB614" d="M248,150 L194,168 L219,219 L168,194 L150,248 L132,194 L50,250 L106,168 L52,150 L106,132 L81,81 L132,106 L150,52 L168,106 L219,81 L194,132Z"/></svg>
+    <div>
+      <h1>Pennsylvania Mail Ballot Returns by Precinct</h1>
+      <div class="sub" id="asof">Returned mail ballots by registered party, matched to the same day before Election Day</div>
+    </div>
+  </div>
+  <div class="status"><span class="dot" id="dot"></span><span id="stat">Loading…</span></div>
+</div></header>
+
+<div class="wrap">
+  <div class="controls">
+    <div class="ctl"><label>Map shows</label>
+      <div class="seg" id="metric" role="group" aria-label="Map metric">
+        <button data-m="shift" aria-pressed="true">Margin shift</button>
+        <button data-m="margin" aria-pressed="false">2026 margin</button>
+        <button data-m="vol" aria-pressed="false">All ballots</button>
+        <button data-m="rvol" aria-pressed="false">GOP ballots</button>
+        <button data-m="dvol" aria-pressed="false">Dem ballots</button>
+      </div>
+    </div>
+    <div class="ctl"><label>Compare to</label>
+      <div class="seg" id="bench" role="group" aria-label="Comparison election">
+        <button data-y="2022" aria-pressed="true" title="Nov 8, 2022 midterm general">2022</button>
+        <button data-y="2024" aria-pressed="false" title="Nov 5, 2024 presidential general">2024</button>
+        <button data-y="2025" aria-pressed="false" title="Nov 4, 2025 municipal general">2025</button>
+      </div>
+    </div>
+    <div class="ctl"><label for="gtype">Area</label>
+      <select id="gtype">
+        <option value="all">Statewide</option><option value="c">County</option>
+        <option value="cd">Congressional district</option><option value="sd">State Senate district</option><option value="hd">State House district</option>
+      </select>
+    </div>
+    <div class="ctl" id="gvalwrap" hidden><label for="gval">&nbsp;</label><select id="gval"></select></div>
+  </div>
+
+  <div class="grid">
+    <div class="mapbox">
+      <svg id="map" role="img" aria-label="Pennsylvania voting district map"></svg>
+      <div class="banner" id="banner" hidden></div>
+      <div class="overlay">
+        <div class="legend" id="legend"></div>
+        <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button></div>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="card" id="summary"><div class="k">Selection</div><h2 id="selname">Pennsylvania</h2><p class="hint">Loading returns…</p></div>
+      <div class="card" id="detail"><div class="k">Precinct</div><p class="hint">Hover or tap a precinct for its numbers.</p></div>
+      <div class="card" id="moverscard" hidden></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <p><b>How this is built.</b> Pennsylvania mail and absentee ballot return records, accepted returns only, one ballot per voter. Party is the registration party on the ballot record (Other includes unaffiliated). The 2026 cutoff is the latest return date with at least 1,000 ballots logged; the comparison year is cut at the same number of days before its own Election Day: Nov 8, 2022 midterm, Nov 5, 2024 presidential, Nov 4, 2025 municipal (vs Nov 3, 2026). Read shifts with the electorate in mind: 2024 had presidential-year turnout and 2025 was an off-year municipal race.</p>
+    <p>Voters are placed on 2020 Census voting districts by census block. Comparison-year voters no longer on the file are placed through their precinct in that year's voter file snapshot, which places about 99% or more of each year's returns. Margin is Republican minus Democratic ballots as a share of all returned ballots; positive is a Republican lead. Precincts with too few ballots to read are left gray (fewer than 15 ballots in either year for comparisons, fewer than 10 in 2026 for the 2026 margin).</p>
+    <p>The most recent return day may still be filling in, which understates 2026 volume more than it moves the partisan mix.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+let SNAP = null;
+const COUNTIES = {"001":"Adams","003":"Allegheny","005":"Armstrong","007":"Beaver","009":"Bedford","011":"Berks","013":"Blair","015":"Bradford","017":"Bucks","019":"Butler","021":"Cambria","023":"Cameron","025":"Carbon","027":"Centre","029":"Chester","031":"Clarion","033":"Clearfield","035":"Clinton","037":"Columbia","039":"Crawford","041":"Cumberland","043":"Dauphin","045":"Delaware","047":"Elk","049":"Erie","051":"Fayette","053":"Forest","055":"Franklin","057":"Fulton","059":"Greene","061":"Huntingdon","063":"Indiana","065":"Jefferson","067":"Juniata","069":"Lackawanna","071":"Lancaster","073":"Lawrence","075":"Lebanon","077":"Lehigh","079":"Luzerne","081":"Lycoming","083":"McKean","085":"Mercer","087":"Mifflin","089":"Monroe","091":"Montgomery","093":"Montour","095":"Northampton","097":"Northumberland","099":"Perry","101":"Philadelphia","103":"Pike","105":"Potter","107":"Schuylkill","109":"Snyder","111":"Somerset","113":"Sullivan","115":"Susquehanna","117":"Tioga","119":"Union","121":"Venango","123":"Warren","125":"Washington","127":"Wayne","129":"Westmoreland","131":"Wyoming","133":"York"};
+
+const PART = ["--d4","--d3","--d2","--d1","--mid","--r1","--r2","--r3","--r4"];
+const VOL  = ["--v4","--v3","--v2","--v1","--mid","--u1","--u2","--u3","--u4"];
+const METRICS = {
+  shift:{label:"Margin shift vs {Y} (pts)", th:[-15,-10,-5,-2,2,5,10,15], pal:PART, ends:["Toward Dem","Toward GOP"], unit:"", sign:true,
+    f:r=>okb(r)&&ok26(r)?net(r.d26,r.r26,r.o26)-net(r.db,r.rb,r.ob):null},
+  margin:{label:"2026 returned-ballot margin (R − D, pts)", th:[-60,-40,-20,-5,5,20,40,60], pal:PART, ends:["Dem lead","GOP lead"], unit:"", sign:true,
+    f:r=>t26(r)>=10?net(r.d26,r.r26,r.o26):null},
+  vol:{label:"All ballots returned vs {Y} (%)", th:[-40,-25,-10,-3,3,10,25,40], pal:VOL, ends:["Behind {Y}","Ahead of {Y}"], unit:"%", sign:true,
+    f:r=>okb(r)?pct(t26(r),tb(r)):null},
+  rvol:{label:"Republican ballots returned vs {Y} (%)", th:[-40,-25,-10,-3,3,10,25,40], pal:VOL, ends:["Behind {Y}","Ahead of {Y}"], unit:"%", sign:true,
+    f:r=>r.rb>=10?pct(r.r26,r.rb):null},
+  dvol:{label:"Democratic ballots returned vs {Y} (%)", th:[-40,-25,-10,-3,3,10,25,40], pal:VOL, ends:["Behind {Y}","Ahead of {Y}"], unit:"%", sign:true,
+    f:r=>r.db>=10?pct(r.d26,r.db):null},
+};
+const t26=r=>r.d26+r.r26+r.o26, tb=r=>r.db+r.rb+r.ob;
+const okb=r=>tb(r)>=15, ok26=r=>t26(r)>=15;
+const net=(d,r,o)=>{const t=d+r+o;return t?(r-d)/t*100:null};
+const pct=(a,b)=>b?(a/b-1)*100:null;
+const nf=d3.format(","), f1=d3.format("+.1f"), f0=d3.format("+.0f");
+const marg=v=>v==null?"–":(v>=0?"R+":"D+")+Math.abs(v).toFixed(1);
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+let BY="2022", metric="shift", topo, feats=[], data=new Map(), sel={type:"all",val:null}, svg, gMap, paths, zoom, path, proj, hovEl, selEl;
+const $=id=>document.getElementById(id);
+
+let PAL=[],ND="";
+function colorFor(v){ return v==null?ND:PAL[d3.bisectRight(METRICS[metric].th,v)] }
+function inSel(p){
+  if(sel.type==="all") return true;
+  if(sel.type==="c") return p.c===sel.val;
+  const r=data.get(p.id); return r?r[sel.type]===sel.val:false;
+}
+
+function drawLegend(){
+  const m=METRICS[metric];
+  $("legend").innerHTML=`<div class="t">${m.label.replace("{Y}",BY)}</div>
+   <div class="swatches">${m.pal.map(c=>`<div style="background:var(${c})"></div>`).join("")}</div>
+   <div class="ticks">${m.th.map(t=>`<span>${t>0?"+"+t:t}</span>`).join("")}</div>
+   <div class="ends"><span style="color:var(${m.pal[1]})">${m.ends[0].replace("{Y}",BY)}</span><span style="color:var(${m.pal[7]})">${m.ends[1].replace("{Y}",BY)}</span></div>
+   <div class="nd"><i></i>Too few ballots or no data</div>`;
+}
+function recolor(){
+  if(!paths) return;
+  const m=METRICS[metric]; PAL=m.pal.map(cssv); ND=cssv("--nodata");
+  paths.attr("fill",d=>{const r=data.get(d.properties.id);return colorFor(r?m.f(r):null)});
+  drawLegend();
+}
+
+/* d3 draws on the sphere: exterior rings must run clockwise. The shape file
+   uses the opposite convention, so flip any shape that covers more than half
+   the globe. */
+function fixPoly(rings){ if(d3.geoArea({type:"Polygon",coordinates:rings})>2*Math.PI) rings.forEach(r=>r.reverse()) }
+function rewind(f){
+  const g=f.geometry||f;
+  if(g.type==="Polygon") fixPoly(g.coordinates);
+  else if(g.type==="MultiPolygon") g.coordinates.forEach(fixPoly);
+  return f;
+}
+async function boot(){
+  drawLegend();
+  topo=await fetch("vtd.topo.json").then(r=>r.json());
+  feats=topojson.feature(topo,topo.objects.vtd).features.map(rewind);
+  svg=d3.select("#map");
+  const box=svg.node().getBoundingClientRect();
+  proj=d3.geoConicConformal().parallels([40,42]).rotate([77.7,0]).fitExtent([[12,12],[box.width-12,box.height-12]],{type:"FeatureCollection",features:feats});
+  path=d3.geoPath(proj);
+  svg.attr("viewBox",`0 0 ${box.width} ${box.height}`);
+  gMap=svg.append("g");
+  paths=gMap.append("g").selectAll("path").data(feats).join("path").attr("class","vtd").attr("d",path).attr("fill",cssv("--nodata"));
+  gMap.append("path").attr("class","county").attr("d",path(topojson.mesh(topo,topo.objects.vtd,(a,b)=>a.properties.c!==b.properties.c)));
+  gMap.append("path").attr("class","county").attr("d",path(topojson.mesh(topo,topo.objects.vtd,(a,b)=>a===b)));
+  selEl=gMap.append("path").attr("class","selline");
+  hovEl=gMap.append("path").attr("class","hov");
+  zoom=d3.zoom().scaleExtent([1,80]).translateExtent([[0,0],[box.width,box.height]]).on("zoom",e=>gMap.attr("transform",e.transform));
+  svg.call(zoom);
+  $("zin").onclick=()=>svg.transition().duration(300).call(zoom.scaleBy,2);
+  $("zout").onclick=()=>svg.transition().duration(300).call(zoom.scaleBy,.5);
+  paths.on("pointerenter",(e,d)=>showDetail(d)).on("click",(e,d)=>showDetail(d));
+  svg.on("pointerleave",()=>hovEl.attr("d",null));
+  SNAP=await fetch("data.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).catch(()=>null);
+  loadSnapshot();
+}
+
+function showDetail(f){
+  hovEl.attr("d",path(f));
+  const p=f.properties, r=data.get(p.id);
+  const name=`${p.n}`, where=`${COUNTIES[p.c]||""} County`;
+  if(!r){$("detail").innerHTML=`<div class="k">Precinct</div><h2>${esc(name)}</h2><div class="hint">${where}. No returns data yet.</div>`;return}
+  const s=METRICS.shift.f(r), n26=net(r.d26,r.r26,r.o26), n22=net(r.db,r.rb,r.ob);
+  $("detail").innerHTML=`<div class="k">Precinct · ${where}</div><h2>${esc(name)}</h2>
+   <div class="hint">CD ${r.cd||"–"} · SD ${r.sd||"–"} · HD ${r.hd||"–"} · ${nf(r.ra)} registered</div>
+   <table style="margin-top:8px"><thead><tr><th></th><th>Dem</th><th>GOP</th><th>Other</th><th>Margin</th></tr></thead><tbody>
+   <tr><td>2026</td><td>${nf(r.d26)}</td><td>${nf(r.r26)}</td><td>${nf(r.o26)}</td><td>${marg(n26)}</td></tr>
+   <tr><td>${BY}</td><td>${nf(r.db)}</td><td>${nf(r.rb)}</td><td>${nf(r.ob)}</td><td>${marg(n22)}</td></tr>
+   <tr><td>Change</td><td>${chg(r.d26,r.db)}</td><td>${chg(r.r26,r.rb)}</td><td>${chg(r.o26,r.ob)}</td><td class="${s==null?"":s>=0?"pos":"neg"}">${s==null?"–":f1(s)}</td></tr>
+   </tbody></table>`;
+}
+const chg=(a,b)=>b?f0((a/b-1)*100)+"%":"–";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function summarize(){
+  const fs=feats.filter(f=>inSel(f.properties));
+  const tot={d26:0,r26:0,o26:0,db:0,rb:0,ob:0,ra:0,rd:0,rr:0};
+  const list=[];
+  fs.forEach(f=>{const r=data.get(f.properties.id); if(!r) return; for(const k in tot) tot[k]+=r[k];
+    if(tb(r)>=50&&t26(r)>=50) list.push({f,s:METRICS.shift.f(r)})});
+  const n26=net(tot.d26,tot.r26,tot.o26), n22=net(tot.db,tot.rb,tot.ob), s=n26-n22;
+  const T26=t26(tot),T22=tb(tot);
+  const bar=(d,r,o)=>{const t=d+r+o||1;return `<div class="bar"><span class="D" style="width:${d/t*100}%"></span><span class="R" style="width:${r/t*100}%"></span><span class="O" style="width:${o/t*100}%"></span></div>`};
+  const sh=(d,r,o)=>{const t=d+r+o||1;return `<div class="barlab"><span>D ${(d/t*100).toFixed(1)}%</span><span>R ${(r/t*100).toFixed(1)}%</span><span>O ${(o/t*100).toFixed(1)}%</span></div>`};
+  $("summary").innerHTML=`<div class="k">Selection</div><h2>${esc(selLabel())}</h2>
+   <div class="big">
+     <div><div class="k">Margin shift</div><div class="v ${s>=0?"pos":"neg"}">${isFinite(s)?f1(s):"–"}</div><div class="s">${marg(n22)} → ${marg(n26)}</div></div>
+     <div><div class="k">Ballots returned</div><div class="v">${nf(T26)}</div><div class="s">${T22?chg(T26,T22)+" vs "+nf(T22):"–"} in ${BY}</div></div>
+   </div>
+   <div class="bars"><span>2026</span>${bar(tot.d26,tot.r26,tot.o26)}${sh(tot.d26,tot.r26,tot.o26)}<span>${BY}</span>${bar(tot.db,tot.rb,tot.ob)}${sh(tot.db,tot.rb,tot.ob)}</div>
+   <table style="margin-top:12px"><thead><tr><th>Party</th><th>2026</th><th>${BY}</th><th>Change</th></tr></thead><tbody>
+   <tr><td>Democratic</td><td>${nf(tot.d26)}</td><td>${nf(tot.db)}</td><td>${chg(tot.d26,tot.db)}</td></tr>
+   <tr><td>Republican</td><td>${nf(tot.r26)}</td><td>${nf(tot.rb)}</td><td>${chg(tot.r26,tot.rb)}</td></tr>
+   <tr><td>Other / none</td><td>${nf(tot.o26)}</td><td>${nf(tot.ob)}</td><td>${chg(tot.o26,tot.ob)}</td></tr>
+   </tbody></table>
+   <div class="hint" style="margin-top:8px">Current registration: ${nf(tot.ra)} voters, ${marg(net(tot.rd,tot.rr,tot.ra-tot.rd-tot.rr))} by party.</div>`;
+  list.sort((a,b)=>b.s-a.s);
+  const li=a=>a.map((x,i)=>`<li><button class="mover" data-i="${x.f.properties.id}"><span class="n">${esc(x.f.properties.n)}${sel.type!=="c"?", "+esc(COUNTIES[x.f.properties.c]):""}</span><span class="x ${x.s>=0?"pos":"neg"}">${f1(x.s)}</span></button></li>`).join("");
+  const mc=$("moverscard");
+  if(list.length>=4){mc.hidden=false;
+    mc.innerHTML=`<div class="k">Biggest margin shifts</div><div class="hint" style="font-size:12px">Precincts with 50+ ballots in both years</div>
+     <div class="movers"><div><b class="pos">Toward GOP</b><ol>${li(list.slice(0,6))}</ol></div><div><b class="neg">Toward Dem</b><ol>${li(list.slice(-6).reverse())}</ol></div></div>`;
+    mc.querySelectorAll(".mover").forEach(b=>b.onclick=()=>{const f=feats.find(f=>f.properties.id===b.dataset.i); showDetail(f); zoomTo([f],8)});
+  } else mc.hidden=true;
+}
+function selLabel(){
+  if(sel.type==="all") return "Pennsylvania";
+  if(sel.type==="c") return COUNTIES[sel.val]+" County";
+  return {cd:"Congressional District ",sd:"State Senate District ",hd:"State House District "}[sel.type]+sel.val;
+}
+function zoomTo(fs,maxK){
+  const b=path.bounds({type:"FeatureCollection",features:fs});
+  const [w,h]=[svg.node().viewBox.baseVal.width,svg.node().viewBox.baseVal.height];
+  const k=Math.min(maxK||40,.9/Math.max((b[1][0]-b[0][0])/w,(b[1][1]-b[0][1])/h));
+  const x=(b[0][0]+b[1][0])/2,y=(b[0][1]+b[1][1])/2;
+  svg.transition().duration(600).call(zoom.transform,d3.zoomIdentity.translate(w/2,h/2).scale(k).translate(-x,-y));
+}
+function applySel(){
+  if(!paths) return;
+  const on=sel.type!=="all";
+  gMap.classed("dim",on);
+  paths.classed("out",d=>!inSel(d.properties));
+  if(on){
+    const geoms=topo.objects.vtd.geometries.filter(g=>inSel(g.properties));
+    selEl.attr("d",geoms.length?path(rewind(topojson.merge(topo,geoms))):null);
+    const fs=feats.filter(f=>inSel(f.properties)); if(fs.length) zoomTo(fs);
+  } else { selEl.attr("d",null); svg.transition().duration(600).call(zoom.transform,d3.zoomIdentity) }
+  if(data.size) summarize(); else $("selname")&&($("selname").textContent=selLabel());
+}
+function fillValues(){
+  const t=sel.type, vs=$("gval");
+  $("gvalwrap").hidden=t==="all";
+  if(t==="all"){sel.val=null;applySel();return}
+  let opts;
+  if(t==="c") opts=Object.entries(COUNTIES).map(([k,v])=>[k,v]);
+  else{ const s=new Set(); data.forEach(r=>{if(r[t]) s.add(r[t])}); opts=[...s].sort((a,b)=>(+a)-(+b)||a.localeCompare(b)).map(v=>[v,v]); }
+  vs.innerHTML=opts.map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("");
+  const keep=sel.val&&opts.some(o=>o[0]===sel.val)?sel.val:null;
+  const pref=keep||{c:"017",sd:"6"}[t]; if(pref&&opts.some(o=>o[0]===pref)) vs.value=pref;
+  sel.val=vs.value; applySel();
+}
+$("gtype").onchange=e=>{sel.type=e.target.value;sel.val=null;fillValues()};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>recolor());
+new MutationObserver(()=>recolor()).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+$("gval").onchange=e=>{sel.val=e.target.value;applySel()};
+document.querySelectorAll("#metric button").forEach(b=>b.onclick=()=>{
+  metric=b.dataset.m; document.querySelectorAll("#metric button").forEach(x=>x.setAttribute("aria-pressed",x===b)); recolor()});
+
+/* ---------- snapshot data ---------- */
+let cur=null, bench={}, cuts={}, curCut=null;
+const DAY=d3.timeParse("%Y-%m-%d"), dd=s=>d3.timeFormat("%b %-d, %Y")(DAY(s));
+function setStat(cls,txt){$("dot").className="dot "+cls;$("stat").textContent=txt}
+function banner(title,body){ const b=$("banner"); if(!title){b.hidden=true;return} b.hidden=false; b.innerHTML=`<b>${title}</b>${body}` }
+function loadSnapshot(){
+  if(!SNAP){ setStat("err","No data yet"); banner("No data has been published yet.","The numbers refresh automatically each morning."); return }
+  cur=new Map();
+  SNAP.A.forEach(v=>{ curCut=v[0]; const cty=v[1];
+    (v[2]||"").split(";").forEach(s=>{ if(!s) return; const a=s.split(",");
+      cur.set(cty+a[0],{d26:+a[1],r26:+a[2],o26:+a[3],rd:+a[4],rr:+a[5],ra:+a[6],cd:a[7],sd:a[8],hd:a[9]}) }) });
+  for(const y in SNAP.B){ const m=new Map();
+    SNAP.B[y].forEach(v=>{ cuts[y]=v[0]; const cty=v[1];
+      (v[2]||"").split(";").forEach(s=>{ if(!s) return; const a=s.split(","); m.set(cty+a[0],{d:+a[1],r:+a[2],o:+a[3]}) }) });
+    bench[y]=m; }
+  setStat("live",`Data as of ${d3.timeFormat("%b %-d, %Y, %-I:%M %p")(new Date(SNAP.at))}`);
+  rebuild();
+}
+function rebuild(){
+  const b=bench[BY]; data=new Map();
+  cur.forEach((r,id)=>{ const x=b&&b.get(id); data.set(id,{...r,db:x?x.d:0,rb:x?x.r:0,ob:x?x.o:0}) });
+  const out=d3.timeDay.count(DAY(curCut),new Date(2026,10,3));
+  $("asof").textContent=`Returns through ${dd(curCut)}${b?` vs ${dd(cuts[BY])}`:""}: ${out} days before each Election Day`;
+  recolor(); if(sel.type!=="all"&&sel.type!=="c") fillValues(); summarize();
+}
+document.querySelectorAll("#bench button").forEach(btn=>btn.onclick=()=>{
+  BY=btn.dataset.y; document.querySelectorAll("#bench button").forEach(x=>x.setAttribute("aria-pressed",x===btn));
+  drawLegend(); if(cur) rebuild();
+});
+boot().catch(e=>{setStat("err","Map failed to draw");banner("The map couldn't draw.",`<div class="hint">${esc(e&&e.message||String(e))}</div>`)});
+</script>
+</body></html>
