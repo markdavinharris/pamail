@@ -1,6 +1,6 @@
 # PA Mail Ballot Returns by Precinct
 
-Precinct map of Pennsylvania returned mail ballots by registered party, 2026 compared with 2022, 2024 or 2025 at the same number of days before Election Day. Served with GitHub Pages at <https://markdavinharris.github.io/pamail/>.
+Precinct map of Pennsylvania returned mail ballots by registered party, 2026 compared with 2022, 2024 or 2025 at the same number of days before Election Day. Served with GitHub Pages at <https://pamail.coldspark.com/>.
 
 ## What's here
 
