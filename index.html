@@ -69,6 +69,8 @@ select{font:500 14px var(--body);color:var(--ink);background:var(--panel);border
 .ticks{display:flex;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .ticks span{width:34px;text-align:center}
 .ticks span:first-child{margin-left:17px}
+.ticks.sw span:first-child{margin-left:0}
+.ticks.sw span{font-size:10px}
 .ends{display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-top:2px}
 .nd{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);margin-top:4px}
 .nd i{width:12px;height:10px;background:var(--nodata);display:inline-block}
@@ -124,6 +126,7 @@ th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;le
         <button data-m="vol" aria-pressed="false">All ballots</button>
         <button data-m="rvol" aria-pressed="false">GOP ballots</button>
         <button data-m="dvol" aria-pressed="false">Dem ballots</button>
+        <button data-m="od" aria-pressed="false" title="Request date equals return date: ballot requested and cast the same day, usually in person at the county office">On-demand</button>
       </div>
     </div>
     <div class="ctl"><label>Compare to</label>
@@ -159,7 +162,7 @@ th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;le
   </div>
 
   <div class="notes">
-    <p><b>How this is built.</b> Pennsylvania mail and absentee ballot return records, accepted returns only, one ballot per voter. Party is the registration party on the ballot record (Other includes unaffiliated). The 2026 cutoff is the latest return date with at least 1,000 ballots logged; the comparison year is cut at the same number of days before its own Election Day: Nov 8, 2022 midterm, Nov 5, 2024 presidential, Nov 4, 2025 municipal (vs Nov 3, 2026). Read shifts with the electorate in mind: 2024 had presidential-year turnout and 2025 was an off-year municipal race.</p>
+    <p><b>How this is built.</b> Pennsylvania mail and absentee ballot return records, accepted returns only, one ballot per voter. Party is the registration party on the ballot record (Other includes unaffiliated). The 2026 cutoff is the latest return date with at least 1,000 ballots logged; the comparison year is cut at the same number of days before its own Election Day: Nov 8, 2022 midterm, Nov 5, 2024 presidential, Nov 4, 2025 municipal (vs Nov 3, 2026). Read shifts with the electorate in mind: 2024 had presidential-year turnout and 2025 was an off-year municipal race. On-demand ballots are those whose request date equals their return date: requested and cast the same day, almost always in person at a county election office.</p>
     <p>Voters are placed on 2020 Census voting districts by census block. Comparison-year voters no longer on the file are placed through their precinct in that year's voter file snapshot, which places about 99% or more of each year's returns. Margin is Republican minus Democratic ballots as a share of all returned ballots; positive is a Republican lead. Precincts with too few ballots to read are left gray (fewer than 15 ballots in either year for comparisons, fewer than 10 in 2026 for the 2026 margin).</p>
     <p>The most recent return day may still be filling in, which understates 2026 volume more than it moves the partisan mix.</p>
   </div>
@@ -182,6 +185,9 @@ const METRICS = {
     f:r=>okb(r)?pct(t26(r),tb(r)):null},
   rvol:{label:"Republican ballots returned vs {Y} (%)", th:[-40,-25,-10,-3,3,10,25,40], pal:VOL, ends:["Behind {Y}","Ahead of {Y}"], unit:"%", sign:true,
     f:r=>r.rb>=10?pct(r.r26,r.rb):null},
+  od:{label:"2026 on-demand ballots, net GOP (R − D)", th:[-19.5,-9.5,-4.5,-0.5,0.5,4.5,9.5,19.5], pal:PART, ends:["More Dem","More GOP"],
+    sw:["20+","10–19","5–9","1–4","Even","1–4","5–9","10–19","20+"],
+    f:r=>(r.qd+r.qr+r.qo)>0?r.qr-r.qd:null},
   dvol:{label:"Democratic ballots returned vs {Y} (%)", th:[-40,-25,-10,-3,3,10,25,40], pal:VOL, ends:["Behind {Y}","Ahead of {Y}"], unit:"%", sign:true,
     f:r=>r.db>=10?pct(r.d26,r.db):null},
 };
@@ -208,9 +214,9 @@ function drawLegend(){
   const m=METRICS[metric];
   $("legend").innerHTML=`<div class="t">${m.label.replace("{Y}",BY)}</div>
    <div class="swatches">${m.pal.map(c=>`<div style="background:var(${c})"></div>`).join("")}</div>
-   <div class="ticks">${m.th.map(t=>`<span>${t>0?"+"+t:t}</span>`).join("")}</div>
+   ${m.sw?`<div class="ticks sw">${m.sw.map(t=>`<span>${t}</span>`).join("")}</div>`:`<div class="ticks">${m.th.map(t=>`<span>${t>0?"+"+t:t}</span>`).join("")}</div>`}
    <div class="ends"><span style="color:var(${m.pal[1]})">${m.ends[0].replace("{Y}",BY)}</span><span style="color:var(${m.pal[7]})">${m.ends[1].replace("{Y}",BY)}</span></div>
-   <div class="nd"><i></i>Too few ballots or no data</div>`;
+   <div class="nd"><i></i>${metric==="od"?"No on-demand ballots yet":"Too few ballots or no data"}</div>`;
 }
 function recolor(){
   if(!paths) return;
@@ -266,14 +272,19 @@ function showDetail(f){
    <tr><td>2026</td><td>${nf(r.d26)}</td><td>${nf(r.r26)}</td><td>${nf(r.o26)}</td><td>${marg(n26)}</td></tr>
    <tr><td>${BY}</td><td>${nf(r.db)}</td><td>${nf(r.rb)}</td><td>${nf(r.ob)}</td><td>${marg(n22)}</td></tr>
    <tr><td>Change</td><td>${chg(r.d26,r.db)}</td><td>${chg(r.r26,r.rb)}</td><td>${chg(r.o26,r.ob)}</td><td class="${s==null?"":s>=0?"pos":"neg"}">${s==null?"–":f1(s)}</td></tr>
+   </tbody></table>
+   <table style="margin-top:10px"><thead><tr><th>On-demand</th><th>Dem</th><th>GOP</th><th>Other</th><th>Net R</th></tr></thead><tbody>
+   <tr><td>2026</td><td>${nf(r.qd)}</td><td>${nf(r.qr)}</td><td>${nf(r.qo)}</td><td>${sgn(r.qr-r.qd)}</td></tr>
+   <tr><td>${BY}</td><td>${nf(r.qdb)}</td><td>${nf(r.qrb)}</td><td>${nf(r.qob)}</td><td>${sgn(r.qrb-r.qdb)}</td></tr>
    </tbody></table>`;
 }
+const sgn=v=>v>0?"+"+nf(v):v<0?"−"+nf(-v):"0";
 const chg=(a,b)=>b?f0((a/b-1)*100)+"%":"–";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 function summarize(){
   const fs=feats.filter(f=>inSel(f.properties));
-  const tot={d26:0,r26:0,o26:0,db:0,rb:0,ob:0,ra:0,rd:0,rr:0};
+  const tot={d26:0,r26:0,o26:0,db:0,rb:0,ob:0,ra:0,rd:0,rr:0,qd:0,qr:0,qo:0,qdb:0,qrb:0,qob:0};
   const list=[];
   fs.forEach(f=>{const r=data.get(f.properties.id); if(!r) return; for(const k in tot) tot[k]+=r[k];
     if(tb(r)>=50&&t26(r)>=50) list.push({f,s:METRICS.shift.f(r)})});
@@ -292,7 +303,15 @@ function summarize(){
    <tr><td>Republican</td><td>${nf(tot.r26)}</td><td>${nf(tot.rb)}</td><td>${chg(tot.r26,tot.rb)}</td></tr>
    <tr><td>Other / none</td><td>${nf(tot.o26)}</td><td>${nf(tot.ob)}</td><td>${chg(tot.o26,tot.ob)}</td></tr>
    </tbody></table>
-   <div class="hint" style="margin-top:8px">Current registration: ${nf(tot.ra)} voters, ${marg(net(tot.rd,tot.rr,tot.ra-tot.rd-tot.rr))} by party.</div>`;
+   <div class="k" style="margin-top:14px">On-demand ballots</div>
+   <div class="hint" style="font-size:12px">Requested and returned the same day</div>
+   <table style="margin-top:4px"><thead><tr><th>Party</th><th>2026</th><th>${BY}</th><th>Change</th></tr></thead><tbody>
+   <tr><td>Democratic</td><td>${nf(tot.qd)}</td><td>${nf(tot.qdb)}</td><td>${chg(tot.qd,tot.qdb)}</td></tr>
+   <tr><td>Republican</td><td>${nf(tot.qr)}</td><td>${nf(tot.qrb)}</td><td>${chg(tot.qr,tot.qrb)}</td></tr>
+   <tr><td>Other / none</td><td>${nf(tot.qo)}</td><td>${nf(tot.qob)}</td><td>${chg(tot.qo,tot.qob)}</td></tr>
+   <tr><td>Net GOP</td><td>${sgn(tot.qr-tot.qd)}</td><td>${sgn(tot.qrb-tot.qdb)}</td><td></td></tr>
+   </tbody></table>
+   <div class="hint" style="margin-top:8px">${T26?((tot.qd+tot.qr+tot.qo)/T26*100).toFixed(1):"0"}% of 2026 returns were on-demand. Current registration: ${nf(tot.ra)} voters, ${marg(net(tot.rd,tot.rr,tot.ra-tot.rd-tot.rr))} by party.</div>`;
   list.sort((a,b)=>b.s-a.s);
   const li=a=>a.map((x,i)=>`<li><button class="mover" data-i="${x.f.properties.id}"><span class="n">${esc(x.f.properties.n)}${sel.type!=="c"?", "+esc(COUNTIES[x.f.properties.c]):""}</span><span class="x ${x.s>=0?"pos":"neg"}">${f1(x.s)}</span></button></li>`).join("");
   const mc=$("moverscard");
@@ -355,17 +374,17 @@ function loadSnapshot(){
   cur=new Map();
   SNAP.A.forEach(v=>{ curCut=v[0]; const cty=v[1];
     (v[2]||"").split(";").forEach(s=>{ if(!s) return; const a=s.split(",");
-      cur.set(cty+a[0],{d26:+a[1],r26:+a[2],o26:+a[3],rd:+a[4],rr:+a[5],ra:+a[6],cd:a[7],sd:a[8],hd:a[9]}) }) });
+      cur.set(cty+a[0],{d26:+a[1],r26:+a[2],o26:+a[3],rd:+a[4],rr:+a[5],ra:+a[6],cd:a[7],sd:a[8],hd:a[9],qd:+a[10]||0,qr:+a[11]||0,qo:+a[12]||0}) }) });
   for(const y in SNAP.B){ const m=new Map();
     SNAP.B[y].forEach(v=>{ cuts[y]=v[0]; const cty=v[1];
-      (v[2]||"").split(";").forEach(s=>{ if(!s) return; const a=s.split(","); m.set(cty+a[0],{d:+a[1],r:+a[2],o:+a[3]}) }) });
+      (v[2]||"").split(";").forEach(s=>{ if(!s) return; const a=s.split(","); m.set(cty+a[0],{d:+a[1],r:+a[2],o:+a[3],qd:+a[4]||0,qr:+a[5]||0,qo:+a[6]||0}) }) });
     bench[y]=m; }
   setStat("live",`Data as of ${d3.timeFormat("%b %-d, %Y, %-I:%M %p")(new Date(SNAP.at))}`);
   rebuild();
 }
 function rebuild(){
   const b=bench[BY]; data=new Map();
-  cur.forEach((r,id)=>{ const x=b&&b.get(id); data.set(id,{...r,db:x?x.d:0,rb:x?x.r:0,ob:x?x.o:0}) });
+  cur.forEach((r,id)=>{ const x=b&&b.get(id); data.set(id,{...r,db:x?x.d:0,rb:x?x.r:0,ob:x?x.o:0,qdb:x?x.qd:0,qrb:x?x.qr:0,qob:x?x.qo:0}) });
   const out=d3.timeDay.count(DAY(curCut),new Date(2026,10,3));
   $("asof").textContent=`Returns through ${dd(curCut)}${b?` vs ${dd(cuts[BY])}`:""}: ${out} days before each Election Day`;
   recolor(); if(sel.type!=="all"&&sel.type!=="c") fillValues(); summarize();
